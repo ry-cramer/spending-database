@@ -1,79 +1,56 @@
 # %%
 import sqlite3
 import pandas as pd
-
-con = sqlite3.connect('total_spending.db')
-cur = con.cursor()
-
-# %% 
-# Initialize the database
-# DO NOT RUN MORE THAN ONCE (will produce errors if tables are already in database)
-cur.execute('''CREATE TABLE Subscriptions (
-    SubscriptionID INTEGER PRIMARY KEY,
-    SubscriptionType TEXT NOT NULL,
-    Frequency INTEGER NOT NULL)''')
-
-subscription_types = ['once', 'daily', 'weekly', 'monthly', 'yearly']
-frequencies = [1, 2, 3]
-
-def insert_subscriptions(subscription_types, frequencies):
-    n = 0
-    rows = []
-    for i in subscription_types:
-        for j in frequencies:
-            new_row = (n, i, j)
-            rows.append(new_row)
-            n += 1
-
-    return rows
-
-cur.executemany('INSERT INTO Subscriptions VALUES (?,?,?)', insert_subscriptions(subscription_types, frequencies))
-
-# Test query
-q1 = 'SELECT * FROM Subscriptions'
-
-cur.execute(q1)
-print(cur.fetchall())
-
-# Create the rest of the database
-cur.execute('''CREATE TABLE Transactions (
-    TransactionID INTEGER PRIMARY KEY,
-    SubscriptionID INTEGER NOT NULL,
-    Name TEXT NOT NULL,
-    Category TEXT NOT NULL,
-    Necessity INTEGER NOT NULL,
-    FOREIGN KEY (SubscriptionID) REFERENCES Subscriptions(SubscriptionID)
-    )''')
-
-cur.execute('''CREATE TABLE TransactionHistory (
-    TransactionHistoryID INTEGER PRIMARY KEY,
-    TransactionID INTEGER NOT NULL,
-    Date TEXT NOT NULL,
-    Amount REAL NOT NULL,
-    FOREIGN KEY (TransactionID) REFERENCES Transactions(TransactionID)
-    )''')
-
 # %%
 # Functions for inserting into the database
-def insert_transaction_type(id, name):
+def insert_transaction_type(name, cur):
+    id = cur.execute('SELECT TransactionID FROM Transactions ORDER BY TransactionID DESC LIMIT 1').fetchone() + 1
+    # Fetch SubscriptionID
+    sub_id = 0
+    categories = ['Gas', 'Food', 'Rent', 'Academic', 'Health', 'Hobbies', 'Entertainment', 'Other']
+    while True:
+        category_num = input('''What category of purchase does this fall under?
+            1. Gas
+            2. Food
+            3. Rent
+            4. Academic
+            5. Health
+            6. Hobbies
+            7. Entertainment
+            8. Other
+            Type the corresponding number: ''')
+        try:
+            category = categories[category_num - 1]
+        except:
+            continue
+        break
+    necessity = input('Was this transaction a necessity? y/n: ')
+    necessity = 1 if necessity.lower() == 'y' else 0
+    row = (id, sub_id, name, category, necessity)
+    cur.execute('INSERT INTO Transactions VALUES (?,?,?,?,?)', row)
     
-    pass
-
-def insert_new_transaction():
-    id = int(input('Enter a unique id number (must be an integer): '))
+def insert_new_transaction(con, cur):
+    id = cur.execute('SELECT TransactionHistoryID FROM TransactionHistory ORDER BY TransactionHistoryID DESC LIMIT 1').fetchone() + 1
     name = input('What is the name of this transaction? ')
-    names = pd.read_sql_query('SELECT Name FROM Transactions', con)
-    if name in names:
+
+    # Pulling matching transaction from Transactions table
+    names = pd.read_sql_query('SELECT * FROM Transactions WHERE Name == name', con)
+    if names:
+        print(names)
         correct = input('Which transaction is it? Type the ID number or nothing if none of the transactions match. ')
-        if correct in names:
+        try:
+            cur.execute('SELECT TransactionID FROM Transactions WHERE TransactionID == correct')
+            transaction_id = correct
+        except:
             pass
-            # transaction_id = # correct row id num
     else:
-        transaction_id = insert_transaction_type(id, name)
+        transaction_id = insert_transaction_type(name, cur)
+
     amount = float(input('How much was it? Type only the number as a floating point number with two decimal places (ex 00.00): '))
     date = input('When did you make this purchase? (format dd/mm/yyyy) ')
     row = (id, transaction_id, amount, date)
     cur.execute('INSERT INTO TransactionHistory VALUES (?,?,?,?)', row)
+    con.commit()
 
 # %%
 # Functions for editing the database
@@ -91,7 +68,7 @@ def display_results(query):
 
 # %%
 # Main cell (runs the interaction program)
-def main():
+def main(con, cur):
     print('Welcome to the transaction database!')
     while True:
         print(
@@ -103,17 +80,21 @@ def main():
         menu_selection = input('Enter the number corresponding to your menu selection: ')
 
         if menu_selection == '1':
-            insert_new_transaction()
+            insert_new_transaction(con, cur)
         elif menu_selection == '2':
-            query_transaction_history()
+            query_transaction_history(cur)
         elif menu_selection == '3':
-            edit_transaction_history()
+            edit_transaction_history(con, cur)
         elif menu_selection == '4':
             break
         else:
             print('Invalid input. Please try again.')
 
     print('Thank you for using the transaction database')
-
-if __name__ == 'main':
-    main()
+# %%
+if __name__ == '__main__':
+    con = sqlite3.connect('total_spending.db')
+    cur = con.cursor()
+    main(con, cur)
+    con.close()
+# %%
