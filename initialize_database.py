@@ -73,6 +73,8 @@ if __name__ == '__main__':
     con = sqlite3.connect('total_spending.db')
     cur = con.cursor()
 
-    # initialize_database(con, cur)
+    # Comment out this line and run to test that database is correct
+    initialize_database(con, cur)
+    
     test_database(cur)
     con.close()
