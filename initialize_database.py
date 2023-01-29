@@ -1,3 +1,7 @@
+'''
+File to initialize the database. DO NOT RUN if you already have the database
+'''
+
 # %%
 import sqlite3
 # %% 

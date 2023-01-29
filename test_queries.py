@@ -1,3 +1,6 @@
+'''
+Debugging File. Use this to directly access the database and input values manually
+'''
 import sqlite3
 import pandas as pd
 
