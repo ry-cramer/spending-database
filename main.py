@@ -1,6 +1,12 @@
 # %%
 import sqlite3
 import pandas as pd
+
+# %%
+# Function to display queries to console
+def display_results(query, con):
+    display = pd.read_sql_query(query, con)
+    print(display)
 # %%
 # Functions for inserting into the database
 
@@ -71,8 +77,77 @@ def insert_new_transaction(con, cur):
 
 # %%
 # Functions for editing the database
-def edit_transaction_history():
-    print('Coming Soon...')
+def edit_menu(con, cur):
+    tables = ['TransactionHistory', 'Transactions', 'Subscriptions']
+    try:
+        type_code = int(input('Which table do you want to edit? \n1. TransactionHistory \n2. Transactions \n3. Subscriptions \n'))
+    except:
+        print('Error: Please enter the number on the menu that corresponds to the table you want to edit.')
+        return
+    
+    table = tables[type_code - 1]
+    query_1 = f'SELECT * FROM {table}'
+    display_results(query_1, con)
+
+    while True:
+        try:
+            to_edit = int(input(f'Which selection would you like to edit? Type the table ID number that you\'d like to select '))
+            if table != 'TransactionHistory':
+                table_id = table[:-1] + 'ID'
+            else:
+                table_id = table + 'ID'
+            query_2 = f'SELECT * FROM {table} WHERE {table_id} = {to_edit}'
+            cur.execute(query_2)
+        except:
+            print('Error: invalid selection')
+            continue
+        break
+    
+    display_results(query_2, con)
+    action = input('How do you want to handle this entry? \n1. Edit \n2. Delete \n3. Cancel\n')
+    if action == '1':
+        edit_entry(table, table_id, to_edit, con, cur)
+    elif action == '2':
+        delete_entry(table, table_id, to_edit, con, cur)
+    elif action == '3':
+        return
+    else:
+        print('Invalid input. Returning to main menu...')
+
+def edit_entry(table, table_id, to_edit, con, cur):
+    while True:
+        column_to_edit = input('Which column would you like to change? ')
+        try:
+            pd.read_sql_query(f'SELECT {column_to_edit} FROM {table}', con)
+        except:
+            print('Error: invalid input')
+            continue
+        break
+    
+    # Broken. Need way to match data type
+    while True:
+        new_input = input('What would you like to change this value to? ')
+        try:
+            dtype = pd.read_sql_query(f'SELECT name, type FROM pragma_table_info(\'{table}\') WHERE name == \'{column_to_edit}\'', con)['type'][0]
+            if dtype == 'INTEGER':
+                new_input = int(new_input)
+                cur.execute(f'UPDATE {table} SET {column_to_edit} == {new_input} WHERE {table_id} == {to_edit}')
+            elif dtype == 'REAL':
+                new_input = float(new_input)
+                cur.execute(f'UPDATE {table} SET {column_to_edit} == {new_input} WHERE {table_id} == {to_edit}')
+            else:
+                cur.execute(f'UPDATE {table} SET {column_to_edit} == \'{new_input}\' WHERE {table_id} == {to_edit}')
+        except:
+            print('Error: invalid input')
+            continue
+        break
+
+    con.commit()
+
+def delete_entry(table, table_id, to_delete, con, cur):
+    cur.execute(f'DELETE FROM {table} WHERE {table_id} == {to_delete}')
+    con.commit()
+
 # %% 
 # Functions for querying the database
 def query_transaction_history(con):
@@ -82,11 +157,6 @@ def query_transaction_history(con):
         ON TransactionHistory.TransactionID == Transactions.TransactionID
         ORDER BY Date'''
     display_results(query, con)
-
-# %%
-def display_results(query, con):
-    display = pd.read_sql_query(query, con)
-    print(display)
     input('Press Enter to continue')
 
 # %%
@@ -98,7 +168,7 @@ def main(con, cur):
         '''Main Menu:
         1. Insert a new transaction
         2. View transaction history
-        3. Edit transaction history
+        3. Edit transaction database
         4. Exit transaction database''')
         menu_selection = input('Enter the number corresponding to your menu selection: ')
 
@@ -107,7 +177,7 @@ def main(con, cur):
         elif menu_selection == '2':
             query_transaction_history(con)
         elif menu_selection == '3':
-            edit_transaction_history(con, cur)
+            edit_menu(con, cur)
         elif menu_selection == '4':
             break
         else:
