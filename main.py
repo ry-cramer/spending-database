@@ -6,10 +6,11 @@ Functions:
         Arguments:
             query: SQL formatted query to the total_spending database
             con: Connection object to the total_spending database
-    insert_transaction_type(name, cur)
+    insert_transaction_type(name, con, cur)
         Inserts a new transaction type to the Transactions table
         Arguments:
             name: The name of the transaction to be inserted (will be inserted under Name column in Transactions table)
+            con: Connection object to the total_spending database
             cur: Cursor object to execute SQL commands
     insert_new_transaction(con, cur)
         Inserts a new transaction to the TransactionHistory table
@@ -58,21 +59,21 @@ def display_results(query, con):
 
 ################# Functions for inserting into the database #########################
 
-# Inserting new transaction type (Function not accessible in main program right now)
-def insert_transaction_type(name, cur):
-    id = cur.execute('SELECT TransactionID FROM Transactions ORDER BY TransactionID DESC LIMIT 1').fetchone() + 1
+# Inserting new transaction type
+def insert_transaction_type(name, con, cur):
+    id = int(pd.read_sql_query('SELECT TransactionID FROM Transactions ORDER BY TransactionID DESC LIMIT 1', con)['TransactionID'][0]) + 1
     
-    # Fetch SubscriptionID (INC)
-    sub_type = input('Is this purchase made ONCE, DAILY, WEEKLY, MONTHLY, or YEARLY?')
+    # Fetch SubscriptionID
+    sub_type = input('Is this purchase made ONCE, DAILY, WEEKLY, MONTHLY, or YEARLY? ').lower()
     if sub_type.lower() == 'once':
         sub_freq = 1
     else: 
         sub_freq = int(input('Do you make this purchase every 1, 2, or 3 days/months/etc.? '))
-    # sub_id = cur.execute('SELECT SubscriptionID FROM Subscriptions WHERE SubscriptionType = ? AND Frequency = ?')
+    sub_id = int(pd.read_sql_query(f'SELECT SubscriptionID FROM Subscriptions WHERE SubscriptionType = \'{sub_type}\' AND Frequency = {sub_freq}', con)['SubscriptionID'][0])
     
     categories = ['Gas', 'Food', 'Rent', 'Academic', 'Health', 'Hobbies', 'Entertainment', 'Other']
     while True:
-        category_num = input('''What category of purchase does this fall under?
+        category_num = int(input('''What category of purchase does this fall under?
             1. Gas
             2. Food
             3. Rent
@@ -81,7 +82,7 @@ def insert_transaction_type(name, cur):
             6. Hobbies
             7. Entertainment
             8. Other
-            Type the corresponding number: ''')
+            Type the corresponding number: '''))
         try:
             category = categories[category_num - 1]
         except:
@@ -103,18 +104,14 @@ def insert_new_transaction(con, cur):
     names = pd.read_sql_query(f'SELECT * FROM Transactions WHERE Name == "{name}"', con)
     if not names.empty:
         print(names)
-        correct = int(input('Which transaction is it? Type the ID number or nothing if none of the transactions match. '))
         try:
+            correct = int(input('Which transaction is it? Type the ID number or nothing if none of the transactions match. '))
             cur.execute(f'SELECT TransactionID FROM Transactions WHERE TransactionID == "{correct}"')
             transaction_id = correct
         except:
-            print('This transaction type doesn\'t exist, and the functionality to create it is coming soon. Try again later')
-            return
-            # transaction_id = insert_transaction_type(name, cur)
+            transaction_id = insert_transaction_type(name, con, cur)
     else:
-        print('This transaction type doesn\'t exist, and the functionality to create it is coming soon. Try again later')
-        return
-        # transaction_id = insert_transaction_type(name, cur)
+        transaction_id = insert_transaction_type(name, con, cur)
 
     amount = float(input('How much was it? Type only the number as a floating point number with two decimal places (ex 00.00): '))
     date = input('When did you make this purchase? (format dd-mm-yyyy) ')

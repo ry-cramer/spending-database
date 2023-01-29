@@ -26,7 +26,6 @@ I wrote this program in Python 3.10. I used the sqlite3 and pandas libraries in 
 # Future Work
 
 - Debug existing code (make sure user can't encounter an error or mess up the database)
-- Add functionality to add to the Transactions table
 - Add different query types user can create (Option to display Subscription status, Transaction Category, etc.)
 - Create a GUI or web app to host database (and make program more secure by only allowing certain inputs)
 - (Possibly) Include column in TransactionHistory for descriptions of the purchase
